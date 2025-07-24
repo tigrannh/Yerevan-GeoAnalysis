@@ -1,0 +1,48 @@
+import streamlit as st
+from utils import about, dashboard, map
+from data_prep import load_data
+
+st.set_page_config(page_title="Yereven Geospatial Analysis", layout="wide")
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+def show_login():
+    st.title("🔐 Login Required")
+    st.markdown("Please enter the password to access the dashboard.")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if password == "octogeo":
+            st.session_state.authenticated = True
+        else:
+            st.error("❌ Incorrect password. Try again.")
+
+
+def show_sidebar():
+    with st.sidebar:
+        st.title("📂 Yerevan GeoAnalysis")
+        return st.radio("Go to page:", [
+            "🏠 Overview",
+            "📈 Yerevan distrincts analysis",
+            "🗺️ Yerevan hexagonal analysis"
+        ])
+
+
+
+if not st.session_state.authenticated:
+    show_login()
+else:
+    if "data" not in st.session_state:
+        with st.spinner("Loading data..."):
+            st.session_state.data = load_data()
+            
+    page = show_sidebar()
+    st.title("📊 Main Dashboard")
+
+
+    if page == "🏠 Overview":
+        about.show()
+    elif page == "📈 Yerevan distrincts analysis":
+        dashboard.show()
+    elif page == "🗺️ Yerevan hexagonal analysis":
+        map.show()
