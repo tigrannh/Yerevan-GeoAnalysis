@@ -82,7 +82,7 @@ def line_to_closed_polygon(geom):
         return Polygon(coords)
     return geom
 
-@st.cache_data(show_spinner=True)
+@st.cache_data(show_spinner=False)
 def load_data():
     ameria_secondary_market = pd.read_parquet("data/ameria_secondary_market_long_lat.parquet")
     list_apartments_sell = pd.read_parquet("data/list_apartments_sell_long_lat.parquet")
