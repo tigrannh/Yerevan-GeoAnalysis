@@ -27,7 +27,7 @@ geojson==3.2.0
 geopandas==1.1.1
 gitdb==4.0.12
 GitPython==3.1.44
-h3==4.3.0
+h3==3.7.6
 idna==3.10
 ipyevents==2.0.2
 ipyfilechooser==0.6.0
