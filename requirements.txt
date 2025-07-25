@@ -14,3 +14,4 @@ shapely==2.1.1
 streamlit==1.47.0
 streamlit_folium==0.25.0
 tqdm==4.67.1
+branca==0.8.1
