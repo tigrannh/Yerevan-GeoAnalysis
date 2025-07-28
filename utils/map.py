@@ -6,7 +6,7 @@ from streamlit_folium import st_folium
 from shapely.geometry import Polygon
 from branca.colormap import linear
 import h3
-from data_prep import assign_h3
+from utils.data_prep import assign_h3
 
 def h3_to_polygon(h):
     boundary = h3.h3_to_geo_boundary(h, geo_json=True)

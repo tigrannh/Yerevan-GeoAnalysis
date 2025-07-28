@@ -1,6 +1,5 @@
 import streamlit as st
-from utils import about, dashboard, map
-from data_prep import load_data
+from utils import about, districts_dashboard, map, data_prep
 
 st.set_page_config(page_title="Yereven Geospatial Analysis", layout="wide")
 
@@ -23,26 +22,22 @@ def show_sidebar():
         st.title("📂 Yerevan GeoAnalysis")
         return st.radio("Go to page:", [
             "🏠 Overview",
-            "📈 Yerevan distrincts analysis",
+            "📈 Yerevan Districts Analysis",
             "🗺️ Yerevan hexagonal analysis"
         ])
-
-
 
 if not st.session_state.authenticated:
     show_login()
 else:
     if "data" not in st.session_state:
         with st.spinner("Loading data..."):
-            st.session_state.data = load_data()
+            st.session_state.data = data_prep.load_data()
             
     page = show_sidebar()
-    st.title("📊 Main Dashboard")
-
 
     if page == "🏠 Overview":
         about.show()
-    elif page == "📈 Yerevan distrincts analysis":
-        dashboard.show()
+    elif page == "📈 Yerevan Districts Analysis":
+        districts_dashboard.show()
     elif page == "🗺️ Yerevan hexagonal analysis":
         map.show()
