@@ -6,38 +6,67 @@ from streamlit_folium import st_folium
 from shapely.geometry import Polygon
 from branca.colormap import linear
 from branca.element import MacroElement, Template
-
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
 def show():
     st.title("🏙️ Yerevan Real Estate & Business Dashboard")
 
-    # --- Sidebar options ---
     data_source = st.selectbox(
         "Select data source for coloring districts:",
-        ['Sell', 'Rent', 'Ameria Primary Market', 'OSM Business Counts']
+        ['Apartments Sell', 'Apartments Rent', 'Apartments Primary Market', 'Community Services & Businesses']
     )
 
-    # Checkbox to show/hide OSM points on map
-    show_osm_points = st.checkbox("Show OSM business points on map", value=False)
+    show_osm_points = st.checkbox("Show Community Services & Businesses as points on map", value=False)
 
-    # Load OSM dataframe early to get categories
     osm_df = st.session_state.data['osm_points'].copy()
     osm_df['category'] = osm_df['category'].astype(str)
+    osm_df['main_category'] = osm_df['main_category'].astype(str)
     osm_df['district'] = osm_df['district'].astype(str)
-    osm_categories = osm_df['category'].dropna().unique().tolist()
+    osm_categories = osm_df['main_category'].dropna().unique().tolist()
     osm_categories_sorted = sorted(osm_categories)
 
-    # If OSM points toggled, multiselect to filter categories shown
     selected_osm_categories = []
+    selected_subcategories = {}
+    selected_bank_names = []
+
     if show_osm_points:
         selected_osm_categories = st.multiselect(
-            "Select OSM business categories to show on map:",
+            "Select Community Services & Businesses to show on map:",
             osm_categories_sorted,
             default=[],
-            help="Select which OSM business points to show on map"
+            help="Select which Community Services & Businesses to show on map"
         )
+        
+        for category in selected_osm_categories:
+            subcategories = osm_df[osm_df['main_category'] == category]['category'].unique().tolist()
+            subcategories_sorted = sorted(subcategories)
+            
+            if category == "Financial Services":
+                unique_bank_names = osm_df[osm_df['main_category'] == category]['name'].unique().tolist()
+                with st.expander(f"Select Subcategories for {category}"):
+                    selected_subcategories[category] = st.multiselect(
+                        f"Select subcategories under {category}:",
+                        subcategories_sorted,
+                        default=subcategories_sorted,  
+                        help=f"Select which subcategories of {category} to show on the map"
+                    )
+                    selected_bank_names = st.multiselect(
+                        f"Select Bank name under {category}:",
+                        unique_bank_names,
+                        default=unique_bank_names,  
+                        help=f"Select which Bank of {category} to show on the map"
+                    )
+            else:
+                with st.expander(f"Select Subcategories for {category}"):
+                    selected_subcategories[category] = st.multiselect(
+                        f"Select subcategories under {category}:",
+                        subcategories_sorted,
+                        default=subcategories_sorted,  
+                        help=f"Select which subcategories of {category} to show on the map"
+                    )
 
-    # Define metrics per source
+
     sell_metrics = ['mean_price_amd', 'median_price_amd', 'max_price_amd', 'min_price_amd',
                     'mean_price_amd_per_1ms_area', 'median_price_amd_per_1ms_area',
                     'rooms_mean', 'square_meters_mean']
@@ -45,28 +74,26 @@ def show():
     ameria_metrics = ['new_price_min', 'new_price_max', 'new_price_mean', 'new_price_median',
                      'new_area_mean', 'buildings_count', 'apartments_total', 'apartments_free', 'apartments_sold', 'sold_pct']
 
-    # Select metric to color districts by
-    if data_source == 'Sell':
+
+    if data_source == 'Apartments Sell':
         metric_choice = st.selectbox("Select metric to color districts by:", sell_metrics)
-    elif data_source == 'Rent':
+    elif data_source == 'Apartments Rent':
         metric_choice = st.selectbox("Select metric to color districts by:", rent_metrics)
-    elif data_source == 'Ameria Primary Market':
+    elif data_source == 'Apartments Primary Market':
         metric_choice = st.selectbox("Select metric to color districts by:", ameria_metrics)
     else:
-        metric_choice = st.selectbox("Select OSM business category to color districts by:", osm_categories_sorted)
+        metric_choice = st.selectbox("Select Community Services & Businesses category to color districts by:", osm_categories_sorted)
 
-    # Load districts
     districts_gdf = st.session_state.data['yerevan_distrincts'].copy()
     districts_gdf = districts_gdf.to_crs(epsg=4326)
     districts_gdf['geometry'] = districts_gdf['geometry'].buffer(0)
     districts_gdf = districts_gdf.rename(columns={'district': 'district_name'})
 
-    # --- Aggregate Sell ---
     sell_df = st.session_state.data['list_apartments_sell'].copy()
-    sell_df['price_amd'] = pd.to_numeric(sell_df['price_amd'], errors='coerce')
-    sell_df['square_meters'] = pd.to_numeric(sell_df['square_meters'], errors='coerce')
-    sell_df['number_of_rooms'] = pd.to_numeric(sell_df['number_of_rooms'], errors='coerce')
-    sell_df = sell_df.dropna(subset=['price_amd', 'square_meters', 'distrinct', 'number_of_rooms'])
+    sell_df['price_amd'] = sell_df['price_amd'].astype('float64')
+    sell_df['square_meters'] = sell_df['square_meters'].astype('float64')
+    sell_df['number_of_rooms'] = sell_df['number_of_rooms'].astype('int')
+    sell_df = sell_df.dropna(subset=['price_amd', 'square_meters', 'distrinct', 'number_of_rooms']).copy()
     sell_agg = sell_df.groupby('distrinct').agg(
         mean_price_amd=('price_amd', 'mean'),
         median_price_amd=('price_amd', 'median'),
@@ -79,12 +106,12 @@ def show():
         count_listings=('price_amd', 'count')
     ).reset_index()
 
-    # --- Aggregate Rent ---
+
     rent_df = st.session_state.data['list_apartments_rent'].copy()
-    rent_df['price_amd'] = pd.to_numeric(rent_df['price_amd'], errors='coerce')
-    rent_df['square_meters'] = pd.to_numeric(rent_df['square_meters'], errors='coerce')
-    rent_df['number_of_rooms'] = pd.to_numeric(rent_df['number_of_rooms'], errors='coerce')
-    rent_df = rent_df.dropna(subset=['price_amd', 'square_meters', 'distrinct', 'number_of_rooms'])
+    rent_df['price_amd'] = rent_df['price_amd'].astype('float64')
+    rent_df['square_meters'] = rent_df['square_meters'].astype('float64')
+    rent_df['number_of_rooms'] = rent_df['number_of_rooms'].astype('int')
+    rent_df = rent_df.dropna(subset=['price_amd', 'square_meters', 'distrinct', 'number_of_rooms']).copy()
     rent_agg = rent_df.groupby('distrinct').agg(
         mean_price_amd=('price_amd', 'mean'),
         median_price_amd=('price_amd', 'median'),
@@ -97,12 +124,12 @@ def show():
         count_listings=('price_amd', 'count')
     ).reset_index()
 
-    # --- Aggregate Ameria ---
+
     ameria_df = st.session_state.data['ameria_primary_market'].copy()
-    ameria_df['apartmentPriceStartingAt'] = pd.to_numeric(ameria_df['apartmentPriceStartingAt'], errors='coerce')
-    ameria_df['areaPriceStartingAt'] = pd.to_numeric(ameria_df['areaPriceStartingAt'], errors='coerce')
-    ameria_df['apartmentsCount'] = pd.to_numeric(ameria_df['apartmentsCount'], errors='coerce')
-    ameria_df['availableForSale'] = pd.to_numeric(ameria_df['availableForSale'], errors='coerce')
+    ameria_df['apartmentPriceStartingAt'] = ameria_df['apartmentPriceStartingAt'].astype('float64')
+    ameria_df['areaPriceStartingAt'] = ameria_df['areaPriceStartingAt'].astype('float64')
+    ameria_df['apartmentsCount'] = ameria_df['apartmentsCount'].astype('int')
+    ameria_df['availableForSale'] = ameria_df['availableForSale'].astype('int')
     ameria_agg = ameria_df.groupby('distrinct').agg(
         new_price_min=('apartmentPriceStartingAt', 'min'),
         new_price_max=('apartmentPriceStartingAt', 'max'),
@@ -114,27 +141,24 @@ def show():
         apartments_free=('availableForSale', 'sum')
     ).reset_index()
     ameria_agg['apartments_sold'] = ameria_agg['apartments_total'] - ameria_agg['apartments_free']
-    ameria_agg['sold_pct'] = 100 * ameria_agg['apartments_sold'] / ameria_agg['apartments_total'].replace(0, 1)
+    ameria_agg['sold_pct'] = 100 * ameria_agg['apartments_sold'] / ameria_agg['apartments_total']
 
-    # --- Aggregate OSM business counts ---
-    osm_counts = osm_df.groupby('district')['category'].value_counts().unstack(fill_value=0).reset_index()
+    osm_counts = osm_df.groupby('district')['main_category'].value_counts().unstack(fill_value=0).reset_index()
+    #osm_counts = pd.pivot_table(osm_df, index='district', columns=['main_category', 'category'], values='id', aggfunc='count', fill_value=0).reset_index()
 
-    # --- Merge all data ---
     districts_gdf = districts_gdf.merge(sell_agg, left_on='district_name', right_on='distrinct', how='left')
     districts_gdf = districts_gdf.merge(rent_agg.add_suffix('_rent'), left_on='district_name', right_on='distrinct_rent', how='left')
     districts_gdf = districts_gdf.merge(ameria_agg, left_on='district_name', right_on='distrinct', how='left')
-    districts_gdf = districts_gdf.merge(osm_counts, left_on='district_name', right_on='district', how='left').fillna(0)
+    #osm_counts.columns = ['district'] + [f"{main_cat}_{cat}" for main_cat, cat in osm_counts.columns[1:].to_list()]
+    districts_gdf = districts_gdf.merge(osm_counts, left_on='district_name', right_on='district', how='left')
 
-    # Fill missing numeric values to zero to avoid errors
+
     districts_gdf.fillna(0, inplace=True)
 
-    # Choose metric column
     metric_column = metric_choice if metric_choice in districts_gdf.columns else 'mean_price_amd'
 
-    # --- Create Folium map ---
     m = folium.Map(location=[40.18, 44.51], zoom_start=11, tiles='cartodbpositron')
 
-    # Add CSS to make popup font smaller
     popup_css = """
     <style>
     .leaflet-popup-content {
@@ -152,7 +176,6 @@ def show():
     colormap.caption = f"{data_source} - {metric_choice.replace('_', ' ').capitalize()}"
     colormap.add_to(m)
 
-    # Hide colormap ticks CSS
     hide_ticks_css = """
     <style>
     .legend .tick text { 
@@ -172,7 +195,6 @@ def show():
 
     m.get_root().add_child(HideTicks())
 
-    # Style districts polygons
     def style_function(feature):
         val = feature['properties'].get(metric_column, 0)
         if val == 0:
@@ -180,11 +202,9 @@ def show():
         else:
             return {'fillColor': colormap(val), 'color': 'black', 'weight': 1, 'fillOpacity': 0.7}
 
-    # Tooltip fields (minimal info)
     tooltip_fields = ['district_name', metric_column]
     tooltip_aliases = ['District:', f'{metric_choice.replace("_", " ").capitalize()}:']
 
-    # Popup fields: detailed + all OSM categories dynamically added
     popup_fields = [
         'district_name',
         'mean_price_amd', 'median_price_amd', 'max_price_amd', 'min_price_amd',
@@ -210,9 +230,8 @@ def show():
         'Ameria New Price Min', 'Ameria New Price Max', 'Ameria New Price Mean', 'Ameria New Price Median', 'Ameria New Area Mean',
         'Ameria Buildings Count', 'Ameria Total Apartments', 'Ameria Free Apartments', 'Ameria Sold Apartments', 'Ameria Sold %'
     ]
-    popup_aliases.extend([f"OSM {c.capitalize()}" for c in extra_osm_cats])
+    popup_aliases.extend([f"Retail {c.capitalize()}" for c in extra_osm_cats])
 
-    # Add district polygons with popup and tooltip
     folium.GeoJson(
         data=districts_gdf.to_json(),
         name='Districts',
@@ -222,27 +241,68 @@ def show():
         highlight_function=lambda x: {'weight': 3, 'color': 'blue'}
     ).add_to(m)
 
-    # Add filtered OSM points only if checkbox enabled and categories selected
+    # if show_osm_points and selected_osm_categories:
+    #     filtered_osm = osm_df[osm_df['main_category'].isin(selected_osm_categories)]
+    #     for idx, row in filtered_osm.iterrows():
+    #         folium.CircleMarker(
+    #             location=[row['lat'], row['lon']],
+    #             radius=4,
+    #             popup=f"Category: {row['main_category']}<br><br>SubCategory: {row['category']}<br><br>Name: {row['name']}<br><br>District: {row['district']}",
+    #             color='blue',
+    #             fill=True,
+    #             fill_opacity=0.6,
+    #         ).add_to(m)
+
     if show_osm_points and selected_osm_categories:
-        filtered_osm = osm_df[osm_df['category'].isin(selected_osm_categories)]
+        filtered_osm = osm_df[osm_df['main_category'].isin(selected_osm_categories)] 
+        chosen_subcategories = []     
+        for k, v in selected_subcategories.items():
+            chosen_subcategories.extend(v)
+
+        filtered_osm = filtered_osm[filtered_osm['category'].isin(chosen_subcategories)].copy()
+        if "Financial Services" in filtered_osm['main_category'].values:
+            filtered_osm = filtered_osm[(filtered_osm['main_category']!="Financial Services") | 
+                                        ((filtered_osm['main_category']=="Financial Services") & (filtered_osm['name'].isin(selected_bank_names)))].copy()
+
+        category_colors = {category: mcolors.rgb2hex(plt.cm.get_cmap('Set3')(i)) 
+                           for i, category in enumerate(filtered_osm['category'].unique())}
+
+        legend_html = '''
+            <div style="position: fixed; bottom: 50px; left: 50px; width: 200px; height: auto; background-color: white; 
+            border:2px solid grey; z-index:9999; font-size:14px; padding: 10px; border-radius: 5px;">
+            <b>Categories Legend</b><br>'''
+
+        for category, color in category_colors.items():
+            legend_html += f'<i style="background-color:{color}; width: 20px; height: 20px; display: inline-block;"></i> {category}<br>'
+        
+        legend_html += '</div>'
+        
+        st.markdown(legend_html, unsafe_allow_html=True)
+
         for idx, row in filtered_osm.iterrows():
+            color = category_colors.get(row['category'], '#0000FF')  
+
             folium.CircleMarker(
                 location=[row['lat'], row['lon']],
                 radius=4,
-                popup=f"Category: {row['category']}<br>District: {row['district']}",
-                color='blue',
+                popup=f"Category: {row['main_category']}<br><br>SubCategory: {row['category']}<br><br>Name: {row['name']}<br><br>District: {row['district']}",
+                color=color,  
                 fill=True,
                 fill_opacity=0.6,
             ).add_to(m)
 
+
+
     st.subheader(f"Map: {data_source} by District colored by {metric_choice.replace('_', ' ').capitalize()}")
     st.markdown(
-        "🛈 **Hint:** Hover on districts for metric preview, click for full details."
-        + (" OSM points shown as blue dots." if show_osm_points and selected_osm_categories else "")
+        "🛈 **Hint:** Hover on districts for metric preview, click for full details.<br>"
+        + (f"  Community Services & Businesses shown as dots. Click on them to see more information.<br>" if show_osm_points and selected_osm_categories else "")
+        + ("  You can select multiple categories and subcategories to filter the data.<br>" if show_osm_points else "")
+        + "  Use the dropdown to choose different metrics and see the map update accordingly.",
+        unsafe_allow_html=True
     )
     st_folium(m, width=1100, height=800)
 
-    # --- Summary tables ---
     st.subheader("Summary: Apartments for Sale")
     st.dataframe(
         sell_agg.rename(columns={'distrinct': 'district'})
@@ -267,7 +327,7 @@ def show():
         })
     )
 
-    st.subheader("Summary: Ameria Primary Market (New Buildings)")
+    st.subheader("Summary: Apartments Primary Market (New Buildings)")
     st.dataframe(
         ameria_agg.rename(columns={'distrinct': 'district'})
         .style.format({
@@ -279,7 +339,7 @@ def show():
         })
     )
 
-    st.subheader("Summary: OSM Business Categories Count by District")
+    st.subheader("Summary: Community Services & Businesses Categories Count by District")
     if not osm_counts.empty:
         osm_counts_fixed = osm_counts.rename(columns={'district': 'district_name'}).copy()
         for col in osm_counts_fixed.columns:
@@ -287,4 +347,10 @@ def show():
                 osm_counts_fixed[col] = pd.to_numeric(osm_counts_fixed[col], errors='coerce').fillna(0)
         st.dataframe(osm_counts_fixed)
     else:
-        st.info("No OSM business category data available.")
+        st.info("No Community Services & Businesses category data available.")
+
+
+
+
+
+
