@@ -1,16 +1,16 @@
 import geopandas as gpd
 import pandas as pd
-import h3
+#import h3
 import streamlit as st
 import geopandas as gpd
 
 from shapely.geometry import Point, Polygon, LineString
 from shapely.geometry import LineString, Polygon
 
-def assign_h3(df, lat_col='latitude', lon_col='longitude', resolution=8):
-    # df['h3'] = df.apply(lambda r: h3.geo_to_h3(r[lat_col], r[lon_col], resolution), axis=1)
-    df['h3'] = df.apply(lambda r: h3.latlng_to_cell(r[lat_col], r[lon_col], resolution), axis=1)
-    return df
+# def assign_h3(df, lat_col='latitude', lon_col='longitude', resolution=8):
+#     # df['h3'] = df.apply(lambda r: h3.geo_to_h3(r[lat_col], r[lon_col], resolution), axis=1)
+#     df['h3'] = df.apply(lambda r: h3.geo_to_h3(r[lat_col], r[lon_col], resolution), axis=1)
+#     return df
 
 def assign_points_to_districts(df, 
                                districts_gdf,
@@ -165,13 +165,12 @@ def load_data(resolution=8):
     districts['geometry'] = districts['geometry'].apply(line_to_closed_polygon)
     osm_df = assign_points_to_districts(osm_df.drop('district', axis=1), districts, lat_col='lat', lon_col='lon', district_col='district')
     
-    list_apartments_sell = assign_h3(df=list_apartments_sell, lat_col='latitude', lon_col='longitude', resolution=resolution)
-    list_apartments_rent = assign_h3(df=list_apartments_rent, lat_col='latitude', lon_col='longitude', resolution=resolution)
-    ameria_primary_market_all_info = assign_h3(df=ameria_primary_market_all_info, lat_col='latitude', lon_col='longitude', resolution=resolution)
-    ameria_secondary_market = assign_h3(df=ameria_secondary_market, lat_col='latitude', lon_col='longitude', resolution=resolution)
-    norakaruyc_am = assign_h3(df=norakaruyc_am, lat_col='Latitude', lon_col='Longitude', resolution=resolution)
-    osm_df = assign_h3(df=osm_df, lat_col='lat', lon_col='lon', resolution=resolution)
-    osm_new_buildings = assign_h3(df=osm_new_buildings, lat_col='centroid_lat', lon_col='centroid_lon', resolution=resolution)
+    # list_apartments_sell = assign_h3(df=list_apartments_sell, lat_col='latitude', lon_col='longitude', resolution=resolution)
+    # list_apartments_rent = assign_h3(df=list_apartments_rent, lat_col='latitude', lon_col='longitude', resolution=resolution)
+    # ameria_primary_market_all_info = assign_h3(df=ameria_primary_market_all_info, lat_col='latitude', lon_col='longitude', resolution=resolution)
+    # ameria_secondary_market = assign_h3(df=ameria_secondary_market, lat_col='latitude', lon_col='longitude', resolution=resolution)
+    # norakaruyc_am = assign_h3(df=norakaruyc_am, lat_col='Latitude', lon_col='Longitude', resolution=resolution)
+    # osm_new_buildings = assign_h3(df=osm_new_buildings, lat_col='centroid_lat', lon_col='centroid_lon', resolution=resolution)
 
     osm_df = osm_df[~(osm_df['category'].isin(["park", "post_office"]))].copy()
     category_renaming = {
@@ -251,7 +250,30 @@ def load_data(resolution=8):
     }
     osm_df['name'] = osm_df['name'].replace(bank_names_mapping)
     osm_df['name'] = osm_df['name'].fillna("Unknown")
+    cnct_dff = pd.DataFrame({'id': ['amio1', 'amio2', 'amio3', 'amio4', 'amio5', 'amio6', 'amio7', 'amio8', 'amio9', 'amio10', 
+                     'amio11', 'amio12', 'amio13', 'amio14', 'amio15', 'amio16', 'amio17', 'amio18'], 
+                    'category': ['Bank']*18, 
+                    'name': ['AMIO Bank']*18,
+                    'amenity': ['bank']*18, 
+                    'tourism': [None]*18, 
+                    'shop': [None]*18, 
+                    'lat': [40.18127, 40.152542634900236, 40.169174, 40.142083, 40.132695504418734, 40.190353, 
+                            40.200813, 40.173095, 40.225843, 40.205534, 40.212147, 40.215749922997986, 40.14603, 
+                            40.186172, 40.201373, 40.216899, 40.203357, 40.15263], 
+                    'lon': [44.50855, 44.49799127033601, 44.515154, 44.524234, 44.52462947910654, 44.460946, 
+                            44.567345, 44.440893, 44.548235, 44.526503, 44.523019, 44.57908645101779, 44.46389, 
+                            44.517694, 44.493942, 44.486428, 44.468637, 44.400158],
+                    'street': [None]*18, 
+                    'housenumber': [None]*18, 
+                    'postcode': [None]*18, 
+                    'district': ['Kentron (Center)', 'Shengavit', 'Kentron (Center)', 'Erebuni', 'Erebuni', 'Malatia-Sebastia', 
+                                'Nor Nork', 'Malatia-Sebastia', 'Kanaker-Zeitun', 'Arabkir', 'Arabkir', 'Avan', 'Shengavit', 
+                                'Kentron (Center)', 'Arabkir', 'Davtashen', 'Ajapnyak', 'Malatia-Sebastia'], 
+                    'main_category': ['Financial Services']*18})
+    osm_df = osm_df[~((osm_df['category'] == 'Bank') & (osm_df['name'] == 'AMIO Bank'))]
+    osm_df = pd.concat([osm_df, cnct_dff], axis=0, ignore_index=True)
 
+    #osm_df = assign_h3(df=osm_df, lat_col='lat', lon_col='lon', resolution=resolution)
 
     return {
         "list_apartments_sell": list_apartments_sell,
