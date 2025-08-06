@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import about, districts_dashboard, map, data_prep, visualizations_3d
+from utils import about, districts_dashboard, map, data_prep, visualizations_3d, norakaruyc_yerevan_dashboard
 
 st.set_page_config(page_title="Yereven Geospatial Analysis", layout="wide")
 
@@ -23,6 +23,7 @@ def show_sidebar():
         return st.radio("Go to page:", [
             "🏠 Overview",
             "📈 Yerevan Districts Analysis",
+            "🏗️ New Buildings Map",
             "🗺️ Yerevan hexagonal analysis",
             "🌐 Advanced 3D Real Estate Dashboard"
         ])
@@ -40,6 +41,8 @@ else:
         about.show()
     elif page == "📈 Yerevan Districts Analysis":
         districts_dashboard.show()
+    elif page == "🏗️ New Buildings Map":
+        norakaruyc_yerevan_dashboard.show()
     elif page == "🗺️ Yerevan hexagonal analysis":
         map.show()
     elif page=="🌐 Advanced 3D Real Estate Dashboard":

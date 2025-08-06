@@ -81,6 +81,7 @@ def load_data(resolution=8):
     osm_df = pd.read_pickle("data/osm_objects_by_categories.pkl")  
     osm_new_buildings = pd.read_pickle("data/osm_new_buildings.pkl")
     districts = gpd.read_file("data/yerevan_12_districts.geojson")
+    yerevan_all_norakaruyc = pd.read_parquet("data/yerevan_norakaruycner.parquet")
 
     currency_to_amd = {
     '$': 390,
@@ -275,6 +276,23 @@ def load_data(resolution=8):
 
     #osm_df = assign_h3(df=osm_df, lat_col='lat', lon_col='lon', resolution=resolution)
 
+    yerevan_all_norakaruyc = pd.read_parquet("data/yerevan_norakaruycner.parquet")
+    distr_eng_am_map = {"Աջափնյակ": "Ajapnyak",
+                        "Արաբկիր": "Arabkir",
+                        "Ավան": "Avan",
+                        "Դավթաշեն": "Davtashen",
+                        "Կենտրոն": "Kentron (Center)",
+                        "Էրեբունի": "Erebuni",
+                        "Մալաթիա-Սեբաստիա": "Malatia-Sebastia",
+                        "Նոր Նորք": "Nor Nork",
+                        "Նորք-Մարաշ": "Nork-Marash",
+                        "Նուբարաշեն": "Nubarashen",
+                        "Քանաքեռ-Զեյթուն": "Kanaker-Zeitun",
+                        "Շենգավիթ": "Shengavit"
+                        }
+    yerevan_all_norakaruyc['district_eng'] = yerevan_all_norakaruyc['district'].map(distr_eng_am_map)
+
+
     return {
         "list_apartments_sell": list_apartments_sell,
         "list_apartments_rent": list_apartments_rent,
@@ -283,7 +301,8 @@ def load_data(resolution=8):
         "norakaruyc_am_apartments": norakaruyc_am,
         "osm_points": osm_df,
         "osm_new_buildings": osm_new_buildings,
-        "yerevan_distrincts": districts
+        "yerevan_distrincts": districts,
+        "yerevan_all_norakaruyc": yerevan_all_norakaruyc
     }
 
 
