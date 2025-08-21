@@ -21,4 +21,4 @@ matplotlib
 seaborn
 pydeck
 openpyxl
-h3==3.7.6
+h3
