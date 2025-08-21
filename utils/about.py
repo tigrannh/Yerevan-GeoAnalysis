@@ -19,6 +19,7 @@ def show():
     ### 📚 Data Sources:
     - [List.am](https://www.list.am) — Apartment rent and sale listings in Armenia
     - [MyHome.am](https://myhome.am) — Verified listings and property market data
+    - [Yerevan.am](https://www.yerevan.am/en/) - Official portal of Yerevan Municipality, providing information on urban development, including permits, progress reports, and updates on new building construction projects across the city.
     - [Norakaruyc.am](https://norakaruyc.am/) — Verified listings and property market data
     - [OpenStreetMap](https://www.openstreetmap.org) — Location data for city infrastructure, POIs, and administrative boundaries
                 

@@ -26,7 +26,7 @@ def show():
         df.dropna(subset=['lat', 'lon', 'district'], inplace=True)
         for col in ['status', 'building_type', 'building_subtype', 'constructors', 'address',
                     'permit_start_dt', 'permit_end_dt', 'risk_category']:
-            df[col] = df[col].fillna('Not Specified')
+            df[col] = df[col].fillna('Not Specified').replace('', 'Not Specified')
         df['permit_start_dt'] = pd.to_datetime(df['permit_start_dt'], errors='coerce')
         df['permit_end_dt'] = pd.to_datetime(df['permit_end_dt'], errors='coerce')
         return df
@@ -194,8 +194,33 @@ def show():
     st_folium(m, width=1100, height=700)
 
 
-    grouped = filtered_df.groupby(['lat', 'lon'])
-    agg_df = grouped.size().reset_index(name='value')
+    agg_df = (
+        filtered_df
+        .groupby(['lat', 'lon'], as_index=False)
+        .agg({
+            'district': 'first',
+            'address': 'first',
+            'constructors': 'first',
+            'status': 'first',
+            'building_type': 'first',
+            'building_subtype': 'first',
+            'permit_start_dt': 'first',
+            'permit_end_dt': 'first',
+            'risk_category': 'first',
+            'district_eng': 'first',
+            'status': 'first',
+            'building_type': 'first',
+            'building_subtype': 'first',
+            'constructors': 'first',
+            'address': 'first',
+            'risk_category': 'first',
+        })
+    )
+
+    agg_df['value'] = (
+        filtered_df.groupby(['lat', 'lon']).size().values
+    )
+
 
     height_multiplier = st.sidebar.slider("Height Multiplier", 1, 100, 20)
     agg_df['elevation'] = agg_df['value'] * height_multiplier
@@ -227,10 +252,26 @@ def show():
     )
 
     deck = pdk.Deck(
-        layers=[layer],
-        initial_view_state=view_state,
-        tooltip={"text": "Projects: {value}"}
-    )
+    layers=[layer],
+    initial_view_state=view_state,
+    tooltip = {
+    "html": """
+    <div style="font-size: 11px; line-height: 1.4;">
+        <b>Projects:</b> {value}<br>
+        <b>District:</b> {district_eng}<br>
+        <b>Address:</b> {address}<br>
+        <b>Owner:</b> {constructors}<br>
+        <b>Status:</b> {status}<br>
+        <b>Type:</b> {building_type}<br>
+        <b>Subtype:</b> {building_subtype}<br>
+        <b>Risk:</b> {risk_category}
+    </div>
+    """,
+    "style": {
+        "backgroundColor": "white",
+        "color": "black"
+    }
+})
 
     st.pydeck_chart(deck)
 
@@ -266,8 +307,12 @@ def show():
     if not filtered_df.empty:
         fig2, ax2 = plt.subplots(figsize=(12, 7))
         status_agg = filtered_df['status'].value_counts()
-        sns.barplot(x=status_agg.index, y=status_agg.values, palette="magma", ax=ax2)
-        ax2.set_title(f"Project Status in {selected_district}", fontsize=16)
+        # sns.barplot(x=status_agg.index, y=status_agg.values, palette="magma", ax=ax2)
+        # ax2.set_title(f"Project Status in {selected_district}", fontsize=16)
+        import textwrap
+        wrapped_labels = [textwrap.fill(label, 12) for label in status_agg.index]  # wrap at 12 chars
+        sns.barplot(x=wrapped_labels, y=status_agg.values, palette="magma", ax=ax2)
+        ax2.tick_params(axis='x', rotation=30, labelrotation=30)
         ax2.set_xlabel("Status")
         ax2.set_ylabel("Number of Projects")
         ax2.tick_params(axis='x', rotation=45)
@@ -278,13 +323,142 @@ def show():
 
     st.markdown("### Browse Construction Data")
     st.dataframe(
-        filtered_df[['district', 'address', 'constructors', 'status', 'building_type', 'permit_end_dt']]
+        filtered_df[['district', 'address', 'constructors', "building_type", "building_subtype", 'status',  'permit_start_dt', 'permit_end_dt']]
         .rename(columns={
             'district': 'District', 'address': 'Address', 'constructors': 'Constructor',
-            'status': 'Status', 'building_type': 'Building Type', 'permit_end_dt': 'Permit End Date'
+            'building_type': 'Building Type', 'building_subtype': 'Building Subtype',
+            'status': 'Status', 'permit_start_dt': 'Permit Start Date', 'permit_end_dt': 'Permit End Date'
         }),
         height=400
     )
+
+    #######
+    # === NEW: 3D Building Footprints (extruded) with height boosted by nearby projects ===
+    # --- 3D building footprints (corrected order) ---
+
+    st.subheader("🏢 3D Building Footprints — Height Boosted by Nearby Projects"
+                 )
+    with st.spinner("Loading 3D building footprints and rendering…"):
+       
+        # Controls for this view
+        with st.sidebar.expander("🏢 3D Buildings settings", expanded=False):
+            radius_m = st.slider("Match radius (meters)", 5, 80, 25, 5)
+            boost_per_project = st.slider("Height boost per project (m)", 3, 50, 12, 1)
+            min_base_h = st.slider("Minimum base height (m)", 3, 20, 6, 1)
+            height_scale = st.slider("Overall height scale", 1.0, 5.0, 2.0, 0.1)  # NEW
+        # with st.sidebar.expander("🏢 3D Buildings settings", expanded=False):
+        #     radius_m = st.slider("Match radius (meters)", 5, 120, 35, 5)
+        #     boost_per_project = st.slider("Height boost per project (m)", 3, 100, 20, 1)  # higher default & max
+        #     min_base_h = st.slider("Minimum base height (m)", 3, 40, 10, 1)               # taller base
+        #     height_scale = st.slider("Overall height scale", 1.0, 30.0, 8.0, 0.5)  
+
+
+        try:
+            import osmnx as ox
+            import geopandas as gpd
+            import numpy as np
+            import json
+
+            # 1) Get OSM building footprints for Yerevan (works for osmnx <2.0 and >=2.0)
+            if hasattr(ox, "features_from_place"):
+                buildings = ox.features_from_place("Yerevan, Armenia", tags={"building": True})
+            else:
+                buildings = ox.geometries_from_place("Yerevan, Armenia", tags={"building": True})
+
+            # Keep only polygonal geometries
+            buildings = buildings[buildings.geometry.notnull()].copy()
+            buildings = buildings[~buildings.geometry.is_empty].copy()
+            buildings = buildings[buildings.geom_type.isin(["Polygon", "MultiPolygon"])].copy()
+            buildings = buildings.to_crs(epsg=4326)
+
+            # 2) Base height (meters): prefer 'height', else 3m per 'building:levels', else fallback
+            def _base_height(row):
+                h = row.get("height")
+                lv = row.get("building:levels")
+                try:
+                    if h:
+                        return float(str(h).lower().replace("m", "").strip())
+                    if lv:
+                        return float(lv) * 3.0
+                except Exception:
+                    pass
+                return 6.0
+
+            buildings["base_h"] = buildings.apply(_base_height, axis=1)
+
+            # 3) Project to meters for spatial ops and give each building an id
+            bldg_m = buildings.to_crs(epsg=3857).copy()
+            bldg_m["_bidx"] = np.arange(len(bldg_m))
+
+            # 4) Points -> GeoDataFrame, buffer by radius, count how many touch each building
+            gdf_pts = gpd.GeoDataFrame(
+                filtered_df,
+                geometry=gpd.points_from_xy(filtered_df["lon"], filtered_df["lat"]),
+                crs="EPSG:4326",
+            ).to_crs(epsg=3857)
+
+            if len(gdf_pts) > 0:
+                buf_gdf = gpd.GeoDataFrame(geometry=gdf_pts.geometry.buffer(radius_m), crs=gdf_pts.crs)
+                hit = gpd.sjoin(bldg_m[["_bidx", "geometry"]], buf_gdf, how="left", predicate="intersects")
+                proj_counts = hit.groupby("_bidx").size().rename("proj_count")
+                bldg_m = bldg_m.join(proj_counts, on="_bidx")
+            else:
+                bldg_m["proj_count"] = 0
+
+            bldg_m["proj_count"] = bldg_m["proj_count"].fillna(0).astype(int)
+
+            # 5) Compute final elevation: max(min_base_h, base_h) + proj_count * boost_per_project
+            # bldg_m["elevation_m"] = np.maximum(bldg_m["base_h"], min_base_h) + bldg_m["proj_count"] * boost_per_project
+            bldg_m["elevation_m"] = (
+                np.maximum(bldg_m["base_h"], min_base_h) + bldg_m["proj_count"] * boost_per_project
+            ) * height_scale
+            bldg_m["has_proj"] = (bldg_m["proj_count"] > 0).astype(int)
+
+            # 6) Back to WGS84 and keep only what pydeck needs
+            out_bldg = bldg_m.to_crs(epsg=4326)[["geometry", "elevation_m", "proj_count", "has_proj"]].copy()
+            geojson = json.loads(out_bldg.to_json())
+
+            # 7) Render extruded polygons: gray if 0 projects, purple if >=1
+            bldg_layer = pdk.Layer(
+                "GeoJsonLayer",
+                data=geojson,
+                extruded=True,
+                wireframe=False,
+                get_elevation="properties.elevation_m",
+                get_fill_color="""
+                    [properties.proj_count > 0 ? 106 : 210,
+                    properties.proj_count > 0 ? 13  : 210,
+                    properties.proj_count > 0 ? 173 : 210,
+                    150]
+                """,
+                get_line_color="[150,150,180]",
+                line_width_min_pixels=0.5,
+                pickable=True,
+                auto_highlight=True,
+            )
+
+            deck_bld = pdk.Deck(
+                layers=[bldg_layer],
+                initial_view_state=view_state,  # reuse your existing view_state
+                map_style="light",
+                tooltip={
+                    "html": "<b>Projects nearby:</b> {proj_count}<br/><b>Elevation (m):</b> {elevation_m}",
+                    "style": {"backgroundColor": "white", "color": "black"},
+                },
+            )
+
+            st.pydeck_chart(deck_bld)
+            st.caption(f"All buildings are shown. Elevation = max(base, {min_base_h}m) + proj_count × {boost_per_project}m. "
+                    f"Project match radius = {radius_m}m.")
+
+        except Exception as e:
+            st.info(
+                "To render extruded building footprints, install: `pip install osmnx geopandas` "
+                f"and ensure they import correctly. Error: {e}"
+            )
+
+
+
 
 
 

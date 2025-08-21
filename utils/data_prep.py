@@ -1,16 +1,16 @@
 import geopandas as gpd
 import pandas as pd
-#import h3
+import h3
 import streamlit as st
 import geopandas as gpd
 
 from shapely.geometry import Point, Polygon, LineString
 from shapely.geometry import LineString, Polygon
 
-# def assign_h3(df, lat_col='latitude', lon_col='longitude', resolution=8):
-#     # df['h3'] = df.apply(lambda r: h3.geo_to_h3(r[lat_col], r[lon_col], resolution), axis=1)
-#     df['h3'] = df.apply(lambda r: h3.geo_to_h3(r[lat_col], r[lon_col], resolution), axis=1)
-#     return df
+def assign_h3(df, lat_col='latitude', lon_col='longitude', resolution=8):
+    # df['h3'] = df.apply(lambda r: h3.geo_to_h3(r[lat_col], r[lon_col], resolution), axis=1)
+    df['h3'] = df.apply(lambda r: h3.geo_to_h3(r[lat_col], r[lon_col], resolution), axis=1)
+    return df
 
 def assign_points_to_districts(df, 
                                districts_gdf,
@@ -114,6 +114,7 @@ def load_data(resolution=8):
     list_apartments_rent = list_apartments_rent[list_apartments_rent["square_meters"].notna()].copy()
     list_apartments_rent['price_amd_per_1ms_area'] = list_apartments_rent.apply(lambda row: float(row["price_amd"])/float(row["square_meters"]), axis=1)
     #list_apartments_rent = list_apartments_rent[['latitude', 'longitude', 'number_of_rooms', 'square_meters', 'price_amd', 'price_amd_per_1ms_area']].copy()
+    list_apartments_rent = list_apartments_rent[list_apartments_rent['square_meters'].astype('float')<=300].copy()
 
 
     cols =  ["id", "exploitationDate", "apartmentsCount", "availableForSale", "apartmentPriceStartingAt",
