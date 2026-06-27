@@ -20,5 +20,6 @@ branca
 matplotlib
 seaborn
 pydeck
+plotly
 openpyxl
 h3

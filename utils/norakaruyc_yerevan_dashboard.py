@@ -7,6 +7,30 @@ from branca.colormap import linear
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pydeck as pdk
+import plotly.express as px
+
+# Shared brand palette (matches the app's aurora/glass theme)
+BRAND_SCALE = ["#6366F1", "#8B5CF6", "#06B6D4"]  # indigo -> violet -> cyan
+
+
+def style_fig(fig, title=None):
+    """Apply the professional transparent/glass-friendly look to a Plotly figure."""
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=18, color="#0F172A",
+                                         family="Space Grotesk, sans-serif")) if title else None,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Plus Jakarta Sans, sans-serif", color="#334155", size=13),
+        margin=dict(l=10, r=10, t=56 if title else 16, b=10),
+        coloraxis_showscale=False,
+        bargap=0.32,
+        xaxis=dict(showgrid=False, title=None, tickfont=dict(color="#475569")),
+        yaxis=dict(showgrid=True, gridcolor="rgba(15,23,42,0.07)", zeroline=False,
+                   title=None, tickfont=dict(color="#475569")),
+        hoverlabel=dict(bgcolor="white", font_size=13,
+                        font_family="Plus Jakarta Sans, sans-serif"),
+    )
+    return fig
 
 
 def show():
@@ -293,31 +317,35 @@ def show():
 
     st.markdown("### Projects by District and Status")
     
-    fig1, ax1 = plt.subplots(figsize=(12, 6))
-    district_agg = df.groupby('district').size().sort_values(ascending=False)
-    sns.barplot(x=district_agg.index, y=district_agg.values, palette="crest", ax=ax1)
-    ax1.set_title("Total Construction Projects per District", fontsize=16)
-    ax1.set_xlabel("District")
-    ax1.set_ylabel("Number of Projects")
-    ax1.tick_params(axis='x', rotation=45)
-    plt.tight_layout()
-    st.pyplot(fig1)
+    district_agg = df.groupby('district').size().sort_values(ascending=False).reset_index()
+    district_agg.columns = ['District', 'Projects']
+    fig1 = px.bar(
+        district_agg, x='District', y='Projects',
+        color='Projects', color_continuous_scale=BRAND_SCALE, text='Projects',
+    )
+    fig1.update_traces(
+        textposition='outside', cliponaxis=False,
+        marker_line_width=0, textfont=dict(color="#0F172A"),
+        hovertemplate='<b>%{x}</b><br>Projects: %{y}<extra></extra>',
+    )
+    style_fig(fig1, "Total Construction Projects per District")
+    st.plotly_chart(fig1, use_container_width=True)
 
     st.markdown(f"#### Construction Status Breakdown for: **{selected_district}**")
     if not filtered_df.empty:
-        fig2, ax2 = plt.subplots(figsize=(12, 7))
-        status_agg = filtered_df['status'].value_counts()
-        # sns.barplot(x=status_agg.index, y=status_agg.values, palette="magma", ax=ax2)
-        # ax2.set_title(f"Project Status in {selected_district}", fontsize=16)
-        import textwrap
-        wrapped_labels = [textwrap.fill(label, 12) for label in status_agg.index]  # wrap at 12 chars
-        sns.barplot(x=wrapped_labels, y=status_agg.values, palette="magma", ax=ax2)
-        ax2.tick_params(axis='x', rotation=30, labelrotation=30)
-        ax2.set_xlabel("Status")
-        ax2.set_ylabel("Number of Projects")
-        ax2.tick_params(axis='x', rotation=45)
-        plt.tight_layout()
-        st.pyplot(fig2)
+        status_agg = filtered_df['status'].value_counts().reset_index()
+        status_agg.columns = ['Status', 'Projects']
+        fig2 = px.bar(
+            status_agg, x='Status', y='Projects',
+            color='Projects', color_continuous_scale=BRAND_SCALE, text='Projects',
+        )
+        fig2.update_traces(
+            textposition='outside', cliponaxis=False,
+            marker_line_width=0, textfont=dict(color="#0F172A"),
+            hovertemplate='<b>%{x}</b><br>Projects: %{y}<extra></extra>',
+        )
+        style_fig(fig2, f"Project Status in {selected_district}")
+        st.plotly_chart(fig2, use_container_width=True)
     else:
         st.info(f"No construction data to display for {selected_district}.")
 
