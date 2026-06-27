@@ -13,6 +13,40 @@ import plotly.express as px
 BRAND_SCALE = ["#6366F1", "#8B5CF6", "#06B6D4"]  # indigo -> violet -> cyan
 
 
+@st.cache_data(show_spinner="Loading Yerevan building footprints from OpenStreetMap…")
+def load_yerevan_buildings():
+    """Download + prepare OSM building footprints once, then cache them.
+
+    Avoids re-fetching tens of thousands of polygons on every interaction
+    (which is slow and memory-heavy on Streamlit Cloud)."""
+    import osmnx as ox
+
+    if hasattr(ox, "features_from_place"):
+        buildings = ox.features_from_place("Yerevan, Armenia", tags={"building": True})
+    else:
+        buildings = ox.geometries_from_place("Yerevan, Armenia", tags={"building": True})
+
+    buildings = buildings[buildings.geometry.notnull()].copy()
+    buildings = buildings[~buildings.geometry.is_empty].copy()
+    buildings = buildings[buildings.geom_type.isin(["Polygon", "MultiPolygon"])].copy()
+    buildings = buildings.to_crs(epsg=4326)
+
+    def _base_height(row):
+        h = row.get("height")
+        lv = row.get("building:levels")
+        try:
+            if h:
+                return float(str(h).lower().replace("m", "").strip())
+            if lv:
+                return float(lv) * 3.0
+        except Exception:
+            pass
+        return 6.0
+
+    buildings["base_h"] = buildings.apply(_base_height, axis=1)
+    return buildings
+
+
 def style_fig(fig, title=None):
     """Apply the professional transparent/glass-friendly look to a Plotly figure."""
     fig.update_layout(
@@ -382,37 +416,12 @@ def show():
 
 
         try:
-            import osmnx as ox
             import geopandas as gpd
             import numpy as np
             import json
 
-            # 1) Get OSM building footprints for Yerevan (works for osmnx <2.0 and >=2.0)
-            if hasattr(ox, "features_from_place"):
-                buildings = ox.features_from_place("Yerevan, Armenia", tags={"building": True})
-            else:
-                buildings = ox.geometries_from_place("Yerevan, Armenia", tags={"building": True})
-
-            # Keep only polygonal geometries
-            buildings = buildings[buildings.geometry.notnull()].copy()
-            buildings = buildings[~buildings.geometry.is_empty].copy()
-            buildings = buildings[buildings.geom_type.isin(["Polygon", "MultiPolygon"])].copy()
-            buildings = buildings.to_crs(epsg=4326)
-
-            # 2) Base height (meters): prefer 'height', else 3m per 'building:levels', else fallback
-            def _base_height(row):
-                h = row.get("height")
-                lv = row.get("building:levels")
-                try:
-                    if h:
-                        return float(str(h).lower().replace("m", "").strip())
-                    if lv:
-                        return float(lv) * 3.0
-                except Exception:
-                    pass
-                return 6.0
-
-            buildings["base_h"] = buildings.apply(_base_height, axis=1)
+            # 1) Get prepared OSM building footprints for Yerevan (cached after first load)
+            buildings = load_yerevan_buildings()
 
             # 3) Project to meters for spatial ops and give each building an id
             bldg_m = buildings.to_crs(epsg=3857).copy()

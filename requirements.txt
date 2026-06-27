@@ -21,5 +21,6 @@ matplotlib
 seaborn
 pydeck
 plotly
+osmnx
 openpyxl
 h3

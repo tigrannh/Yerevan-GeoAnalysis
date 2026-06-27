@@ -9,6 +9,30 @@ import h3
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import seaborn as sns
+import plotly.express as px
+
+# Shared brand palette (matches the app's aurora/glass theme)
+BRAND_SCALE = ["#6366F1", "#8B5CF6", "#06B6D4"]  # indigo -> violet -> cyan
+
+
+def style_fig(fig, title=None):
+    """Apply the professional transparent/glass-friendly look to a Plotly figure."""
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=18, color="#0F172A",
+                                         family="Space Grotesk, sans-serif")) if title else None,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Plus Jakarta Sans, sans-serif", color="#334155", size=13),
+        margin=dict(l=10, r=10, t=56 if title else 16, b=10),
+        coloraxis_showscale=False,
+        bargap=0.28,
+        xaxis=dict(showgrid=False, title=None, tickfont=dict(color="#475569")),
+        yaxis=dict(showgrid=True, gridcolor="rgba(15,23,42,0.07)", zeroline=False,
+                   title=None, tickfont=dict(color="#475569")),
+        hoverlabel=dict(bgcolor="white", font_size=13,
+                        font_family="Plus Jakarta Sans, sans-serif"),
+    )
+    return fig
 
 # --- H3 v3→v4 compatibility shims (safe no-ops if already present) ---
 # v3 name -> v4 function
@@ -304,13 +328,21 @@ def show():
 
         st.markdown(f"### Top 20 Hexagons by: **{metric_type} ({metric_agg})**")
 
-        fig, ax = plt.subplots(figsize=(12, 6))
-        sns.barplot(data=plot_df.sort_values(metric_column, ascending=False), x="h3", y=metric_column, palette="viridis", ax=ax)
-        ax.set_ylabel(f"{metric_type} ({metric_agg})")
-        ax.set_xlabel(f"H3 Hexagon Index (Resolution {resolution})")
-        ax.set_title(f"Top 20 Hexagons by {metric_type.replace('_', ' ').capitalize()}")
-        ax.tick_params(axis='x', rotation=90)
-        st.pyplot(fig)
+        plot_df = plot_df.sort_values(metric_column, ascending=False)
+        y_label = f"{metric_type} ({metric_agg})"
+        fig = px.bar(
+            plot_df, x="h3", y=metric_column,
+            color=metric_column, color_continuous_scale=BRAND_SCALE,
+        )
+        fig.update_traces(
+            marker_line_width=0,
+            hovertemplate="<b>%{x}</b><br>" + y_label + ": %{y:,.0f}<extra></extra>",
+        )
+        style_fig(fig, f"Top 20 Hexagons by {metric_type.replace('_', ' ').capitalize()}")
+        fig.update_xaxes(tickangle=90, title=f"H3 Hexagon Index (Resolution {resolution})",
+                         title_font=dict(color="#475569"))
+        fig.update_yaxes(title=y_label, title_font=dict(color="#475569"))
+        st.plotly_chart(fig, use_container_width=True)
 
 
 if __name__ == "__main__":
