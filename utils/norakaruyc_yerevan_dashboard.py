@@ -65,6 +65,20 @@ def load_yerevan_buildings():
     return buildings
 
 
+@st.cache_data(show_spinner="Preparing 3D buildings…")
+def load_buildings_3857():
+    """Buildings reprojected to metric CRS (EPSG:3857) with an id + base height.
+
+    Cached so we never re-reproject all 76k polygons on every slider change."""
+    import numpy as np
+    b = load_yerevan_buildings().to_crs(epsg=3857).copy()
+    b["_bidx"] = np.arange(len(b))
+    if "base_h" not in b.columns:
+        b["base_h"] = 6.0
+    b["base_h"] = b["base_h"].fillna(6.0)
+    return b
+
+
 def style_fig(fig, title=None):
     """Apply the professional transparent/glass-friendly look to a Plotly figure."""
     fig.update_layout(
@@ -438,14 +452,10 @@ def show():
             import numpy as np
             import json
 
-            # 1) Get prepared OSM building footprints for Yerevan (cached after first load)
-            buildings = load_yerevan_buildings()
+            # 1) Prepared buildings, already projected to meters (cached, no re-reproject)
+            buildings_m = load_buildings_3857()
 
-            # 3) Project to meters for spatial ops and give each building an id
-            bldg_m = buildings.to_crs(epsg=3857).copy()
-            bldg_m["_bidx"] = np.arange(len(bldg_m))
-
-            # 4) Points -> GeoDataFrame, buffer by radius, count how many touch each building
+            # 2) Project current projects to meters
             gdf_pts = gpd.GeoDataFrame(
                 filtered_df,
                 geometry=gpd.points_from_xy(filtered_df["lon"], filtered_df["lat"]),
@@ -453,11 +463,20 @@ def show():
             ).to_crs(epsg=3857)
 
             if len(gdf_pts) > 0:
+                # 3) Keep ONLY buildings near the projects -> renders a few thousand, not 76k.
+                context_m = radius_m + 150  # a little context around each project
+                roi = gdf_pts.geometry.buffer(context_m)
+                roi = roi.union_all() if hasattr(roi, "union_all") else roi.unary_union
+                near_idx = buildings_m.sindex.query(roi, predicate="intersects")
+                bldg_m = buildings_m.iloc[near_idx].copy()
+
+                # 4) Count projects within radius of each nearby building
                 buf_gdf = gpd.GeoDataFrame(geometry=gdf_pts.geometry.buffer(radius_m), crs=gdf_pts.crs)
                 hit = gpd.sjoin(bldg_m[["_bidx", "geometry"]], buf_gdf, how="left", predicate="intersects")
                 proj_counts = hit.groupby("_bidx").size().rename("proj_count")
                 bldg_m = bldg_m.join(proj_counts, on="_bidx")
             else:
+                bldg_m = buildings_m.iloc[:0].copy()
                 bldg_m["proj_count"] = 0
 
             bldg_m["proj_count"] = bldg_m["proj_count"].fillna(0).astype(int)
@@ -503,7 +522,8 @@ def show():
             )
 
             st.pydeck_chart(deck_bld)
-            st.caption(f"All buildings are shown. Elevation = max(base, {min_base_h}m) + proj_count × {boost_per_project}m. "
+            st.caption(f"Showing {len(bldg_m):,} buildings near projects. "
+                    f"Elevation = max(base, {min_base_h}m) + proj_count × {boost_per_project}m. "
                     f"Project match radius = {radius_m}m.")
 
         except Exception as e:
