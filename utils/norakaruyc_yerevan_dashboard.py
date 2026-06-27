@@ -13,12 +13,30 @@ import plotly.express as px
 BRAND_SCALE = ["#6366F1", "#8B5CF6", "#06B6D4"]  # indigo -> violet -> cyan
 
 
-@st.cache_data(show_spinner="Loading Yerevan building footprints from OpenStreetMap…")
-def load_yerevan_buildings():
-    """Download + prepare OSM building footprints once, then cache them.
+from pathlib import Path
 
-    Avoids re-fetching tens of thousands of polygons on every interaction
-    (which is slow and memory-heavy on Streamlit Cloud)."""
+# Pre-downloaded Yerevan building footprints (76k polygons, prepared once offline).
+# Loading this file is near-instant; we only hit OSM live as a fallback.
+_BUILDINGS_FILE = Path(__file__).resolve().parent.parent / "data" / "yerevan_buildings.parquet"
+
+
+@st.cache_data(show_spinner="Loading Yerevan building footprints…")
+def load_yerevan_buildings():
+    """Load prepared OSM building footprints.
+
+    Fast path: read the pre-built parquet committed to the repo (no network).
+    Fallback: download from OpenStreetMap via osmnx (slow; only if the file is missing)."""
+    import geopandas as gpd
+
+    if _BUILDINGS_FILE.exists():
+        buildings = gpd.read_parquet(_BUILDINGS_FILE)
+        if buildings.crs is None:
+            buildings.set_crs(epsg=4326, inplace=True)
+        else:
+            buildings = buildings.to_crs(epsg=4326)
+        return buildings
+
+    # --- Fallback: live download (slow) ---
     import osmnx as ox
 
     if hasattr(ox, "features_from_place"):
