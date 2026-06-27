@@ -5,69 +5,137 @@ st.set_page_config(page_title="Yereven Geospatial Analysis", layout="wide")
 
 st.markdown("""
 <style>
-/* Hide menu/footer + toolbar items you don't want */
-#MainMenu, footer { visibility: hidden; }
-[data-testid="stToolbar"] a[href*="github.com"],
-[data-testid="stToolbar"] button[title="Share"],
-[data-testid="stToolbar"] button[title="Edit source"] { display: none !important; }
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap');
 
-/* Keep sidebar always open and visible */
-[data-testid="collapsedControl"] { display: none !important; }
-section[data-testid="stSidebar"] { visibility: visible !important; transform: none !important; }
+    /* ---------- App background: deep neon gradient ---------- */
+    .stApp {
+        background: radial-gradient(circle at 50% 0%, #0f0c29 0%, #302b63 55%, #24243e 100%);
+        background-attachment: fixed;
+        font-family: 'Inter', sans-serif;
+    }
+    .stApp, .stApp p, .stApp span, .stApp label, .stApp li { color: #F2F2F7; }
 
-/* 💜 Very light purple sidebar theme */
-section[data-testid="stSidebar"] {
-  background: linear-gradient(180deg, #F8F3FF 0%, #FBF9FF 100%);
-  border-right: 1px solid #E6DFFF;
-}
-section[data-testid="stSidebar"] .block-container {
-  padding-top: 14px; padding-bottom: 16px;
-}
+    /* ---------- Headings: neon gradient + Orbitron ---------- */
+    h1, h2, h3 {
+        font-family: 'Orbitron', sans-serif !important;
+        background: linear-gradient(90deg, #00ff88, #00d4ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 900 !important;
+        letter-spacing: 0.5px;
+    }
 
-/* Sticky logo box at top of sidebar */
-.sidebar-logo {
-  position: sticky; top: 0; z-index: 1000;
-  background: #F2EAFE;                      /* light lilac box */
-  border-bottom: 1px solid #E2D6FF;
-  padding: 10px 12px; text-align: center;
-}
-.sidebar-logo img { height: 36px; width: auto; }
+    /* ---------- Glass card helper (use class="glass-card") ---------- */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+        margin-bottom: 14px;
+    }
 
-/* Sidebar headings */
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3,
-section[data-testid="stSidebar"] h4 {
-  color: #5C2E91;          /* deep purple */
-  margin-top: 0.6rem; margin-bottom: 0.4rem;
-}
+    /* ---------- Metrics as glass tiles ---------- */
+    [data-testid="stMetric"] {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(0,212,255,0.25);
+        border-radius: 16px;
+        padding: 14px 16px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    }
+    [data-testid="stMetricValue"] { color: #00ff88 !important; font-family:'Orbitron',sans-serif; }
 
-/* Sidebar widgets look */
-section[data-testid="stSidebar"] [data-baseweb="select"]>div,
-section[data-testid="stSidebar"] input,
-section[data-testid="stSidebar"] textarea {
-  border: 1px solid #E6DFFF !important;
-  background: #FFFFFF !important;
-  border-radius: 8px !important;
-}
-section[data-testid="stSidebar"] button[kind="primary"] {
-  background: #6A0DAD !important; border-color: #6A0DAD !important;
-}
-section[data-testid="stSidebar"] button[kind="primary"]:hover { filter: brightness(1.05); }
+    /* ---------- Buttons: neon gradient pills ---------- */
+    div.stButton > button {
+        background: linear-gradient(45deg, #00ff88, #00d4ff) !important;
+        color: #001018 !important;
+        font-family: 'Orbitron', sans-serif !important;
+        font-weight: 900 !important;
+        border: none !important;
+        border-radius: 50px !important;
+        padding: 0.5rem 1.4rem !important;
+        transition: 0.3s !important;
+    }
+    div.stButton > button:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,255,136,0.35); }
+    div.stButton > button p, div.stButton > button div, div.stButton > button span {
+        color: #001018 !important; font-weight: 900 !important;
+    }
 
-/* DataFrame card look in sidebar */
-section[data-testid="stSidebar"] div[data-testid="stDataFrame"] {
-  background: #FFFFFF;
-  border: 1px solid #E6DFFF;
-  border-radius: 10px;
-  padding: 6px;
-  box-shadow: 0 1px 4px rgba(90,60,150,0.06);
-}
+    /* ---------- Tabs ---------- */
+    .stTabs [data-baseweb="tab-list"] { gap: 6px; }
+    .stTabs [data-baseweb="tab"] {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px 10px 0 0; color: #F2F2F7;
+    }
+    .stTabs [aria-selected="true"] {
+        background: rgba(0,212,255,0.15) !important;
+        border-bottom: 2px solid #00ff88 !important;
+    }
 
-/* Subtle purple scrollbar in sidebar */
-section[data-testid="stSidebar"] ::-webkit-scrollbar { width: 10px; }
-section[data-testid="stSidebar"] ::-webkit-scrollbar-track { background: #F6F0FF; }
-section[data-testid="stSidebar"] ::-webkit-scrollbar-thumb { background: #D8C9FF; border-radius: 6px; }
+    /* ---------- Selectbox / inputs (readable on dark) ---------- */
+    div[data-baseweb="select"] > div {
+        background-color: rgba(255,255,255,0.08) !important; color: #FFFFFF !important;
+        border: 1px solid rgba(255,255,255,0.18) !important; border-radius: 10px !important;
+    }
+    div[data-baseweb="select"] input, .stTextInput input, .stNumberInput input { color: #FFFFFF !important; }
+    div[data-baseweb="popover"] ul { background-color: #16213e !important; }
+    div[data-baseweb="popover"] li, div[data-baseweb="popover"] li span, div[data-baseweb="popover"] li div { color: #FFFFFF !important; }
+    div[data-baseweb="popover"] li:hover { background-color: rgba(0,212,255,0.30) !important; }
+
+    /* ---------- Radio buttons (sidebar nav) ---------- */
+    div[role="radiogroup"] > label {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px; padding: 8px 12px; margin-bottom: 6px;
+        transition: 0.2s;
+    }
+    div[role="radiogroup"] > label:hover {
+        background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.45);
+    }
+
+    /* ---------- Sidebar: dark glass, always open ---------- */
+    [data-testid="collapsedControl"] { display: none !important; }
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, rgba(22,33,62,0.96) 0%, rgba(15,12,41,0.96) 100%) !important;
+        border-right: 1px solid rgba(0,255,136,0.25);
+        visibility: visible !important; transform: none !important;
+    }
+    section[data-testid="stSidebar"] .block-container { padding-top: 14px; padding-bottom: 16px; }
+
+    /* ---------- DataFrames ---------- */
+    div[data-testid="stDataFrame"] {
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 12px; overflow: hidden;
+    }
+
+    /* ---------- Scrollbar ---------- */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
+    ::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.35); border-radius: 6px; }
+
+    /* ---------- Hide Streamlit chrome ---------- */
+    #MainMenu, footer { visibility: hidden; }
+    [data-testid="stToolbar"] { display: none !important; }
+    [class*="viewerBadge"], [data-testid="stAppViewerBadge"] { display: none !important; }
+    a[href*="streamlit.io"] { display: none !important; }
+
+    /* ---------- Sticky logo box (if re-enabled) ---------- */
+    .sidebar-logo {
+        position: sticky; top: 0; z-index: 1000;
+        background: rgba(0,255,136,0.06);
+        border-bottom: 1px solid rgba(0,255,136,0.25);
+        padding: 10px 12px; text-align: center;
+    }
+    .sidebar-logo img { height: 36px; width: auto; }
+
+    /* ---------- Responsive (phones) ---------- */
+    @media (max-width: 640px) {
+        h1 { font-size: 1.5rem !important; }
+        h2 { font-size: 1.25rem !important; }
+        .block-container { padding-left: 0.6rem !important; padding-right: 0.6rem !important; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -232,36 +300,37 @@ def show_sidebar():
         #         <img src="data:image/svg+xml;base64,{logo_b64}" alt="Logo">
         #     </div>
         # """, unsafe_allow_html=True)
-        st.markdown(
-        """
-            <style>
-            /* Sticky logo container pinned to the top of the sidebar */
-            .sidebar-logo {
-                position: sticky;
-                top: 0;
-                z-index: 1000;
-                background: #f9f6ff;                  /* match your sidebar color */
-                padding: 10px 12px;
-                border-bottom: 1px solid #e0d7f3;
-                text-align: center;
-            }
-            .sidebar-logo img {
-                height: 34px;                         /* tweak to taste */
-                width: auto;
-                display: inline-block;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
-        st.markdown(
-            f"""
-            <div class="sidebar-logo">
-                <img src="data:image/svg+xml;base64,{logo_b64}" alt="Logo">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        # --- OctoBi logo hidden for now ---
+        # st.markdown(
+        # """
+        #     <style>
+        #     /* Sticky logo container pinned to the top of the sidebar */
+        #     .sidebar-logo {
+        #         position: sticky;
+        #         top: 0;
+        #         z-index: 1000;
+        #         background: #f9f6ff;                  /* match your sidebar color */
+        #         padding: 10px 12px;
+        #         border-bottom: 1px solid #e0d7f3;
+        #         text-align: center;
+        #     }
+        #     .sidebar-logo img {
+        #         height: 34px;                         /* tweak to taste */
+        #         width: auto;
+        #         display: inline-block;
+        #     }
+        #     </style>
+        #     """,
+        #     unsafe_allow_html=True
+        # )
+        # st.markdown(
+        #     f"""
+        #     <div class="sidebar-logo">
+        #         <img src="data:image/svg+xml;base64,{logo_b64}" alt="Logo">
+        #     </div>
+        #     """,
+        #     unsafe_allow_html=True
+        # )
 
         st.title("📂 Yerevan GeoAnalysis")
         return st.radio("Go to page:", [
@@ -277,13 +346,15 @@ def show_sidebar():
 
 
 
-if not st.session_state.authenticated:
-    show_login()
-else:
+# --- Login disabled for now (open access) ---
+# if not st.session_state.authenticated:
+#     show_login()
+# else:
+if True:
     if "data" not in st.session_state:
         with st.spinner("Loading data..."):
             st.session_state.data = data_prep.load_data()
-            
+
     page = show_sidebar()
 
     if page == "🏠 Overview":

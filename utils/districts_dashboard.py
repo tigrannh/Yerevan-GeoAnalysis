@@ -236,7 +236,12 @@ def show():
     #osm_counts.columns = ['district'] + [f"{main_cat}_{cat}" for main_cat, cat in osm_counts.columns[1:].to_list()]
     districts_gdf = districts_gdf.merge(osm_counts, left_on='district_name', right_on='district', how='left')
 
-    districts_gdf.fillna(0, inplace=True)
+    # Fill numeric columns with 0; fill the rest (text columns) with empty string.
+    # A plain fillna(0) crashes on Arrow-backed string columns (pandas 3 / Python 3.14).
+    num_cols = districts_gdf.select_dtypes(include='number').columns
+    str_cols = districts_gdf.columns.difference(num_cols).difference(districts_gdf.select_dtypes(include='geometry').columns)
+    districts_gdf[num_cols] = districts_gdf[num_cols].fillna(0)
+    districts_gdf[str_cols] = districts_gdf[str_cols].fillna('')
 
     #metric_column = metric_choice if metric_choice in districts_gdf.columns else 'mean_price_amd'
 
