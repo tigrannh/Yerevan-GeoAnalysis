@@ -5,128 +5,158 @@ st.set_page_config(page_title="Yereven Geospatial Analysis", layout="wide")
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
     :root {
-        --bg:        #FFFFFF;   /* page background */
-        --bg-soft:   #F7F9FC;   /* subtle section background */
-        --panel:     #FFFFFF;   /* cards */
-        --line:      #E2E8F0;   /* borders */
-        --text:      #0F172A;   /* primary text (slate) */
-        --muted:     #64748B;   /* secondary text */
-        --accent:    #0E9F6E;   /* emerald */
-        --accent-soft: rgba(14,159,110,0.10);
+        --bg:        #F6F7FB;
+        --panel:     rgba(255,255,255,0.72);
+        --panel-solid:#FFFFFF;
+        --line:      rgba(15,23,42,0.08);
+        --text:      #0F172A;
+        --muted:     #5B6677;
+        --c1:        #6366F1;   /* indigo  */
+        --c2:        #8B5CF6;   /* violet  */
+        --c3:        #06B6D4;   /* cyan    */
+        --grad:      linear-gradient(135deg, #6366F1 0%, #8B5CF6 45%, #06B6D4 100%);
+        --grad-soft: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(6,182,212,0.12));
     }
 
-    /* ---------- Base ---------- */
+    /* ---------- Aurora background ---------- */
     .stApp {
-        background: var(--bg);
+        background:
+            radial-gradient(40rem 40rem at 8% -5%, rgba(99,102,241,0.22), transparent 60%),
+            radial-gradient(38rem 38rem at 100% 0%, rgba(6,182,212,0.20), transparent 55%),
+            radial-gradient(45rem 45rem at 50% 120%, rgba(139,92,246,0.18), transparent 55%),
+            var(--bg);
+        background-attachment: fixed;
         font-family: 'Plus Jakarta Sans', sans-serif;
     }
     .stApp, .stApp p, .stApp span, .stApp label, .stApp li { color: var(--text); }
+    .block-container { padding-top: 2.2rem; }
 
-    /* ---------- Headings: clean, solid, professional ---------- */
+    /* ---------- Headings: gradient, modern ---------- */
     h1, h2, h3, h4 {
-        font-family: 'Plus Jakarta Sans', sans-serif !important;
-        color: #0F172A !important;
+        font-family: 'Space Grotesk', sans-serif !important;
         font-weight: 700 !important;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.02em;
+        color: #0F172A !important;
     }
-    h1 { font-weight: 800 !important; }
-    /* subtle emerald accent rule under the main title area */
+    h1 {
+        font-weight: 700 !important; font-size: 2.3rem !important;
+        background: var(--grad);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
     h1::after {
-        content: ""; display: block; width: 56px; height: 3px;
-        background: var(--accent); border-radius: 3px; margin-top: 10px;
+        content: ""; display: block; width: 64px; height: 4px;
+        background: var(--grad); border-radius: 4px; margin-top: 12px;
     }
 
-    /* ---------- Card helper (use class="glass-card") ---------- */
+    /* ---------- Glass cards ---------- */
     .glass-card {
         background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 20px;
-        box-shadow: 0 1px 3px rgba(15,23,42,0.06), 0 8px 24px rgba(15,23,42,0.05);
-        margin-bottom: 14px;
+        backdrop-filter: blur(18px) saturate(160%);
+        -webkit-backdrop-filter: blur(18px) saturate(160%);
+        border: 1px solid rgba(255,255,255,0.6);
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 10px 30px rgba(31,38,135,0.10), inset 0 1px 0 rgba(255,255,255,0.6);
+        margin-bottom: 16px;
+        transition: transform .25s ease, box-shadow .25s ease;
     }
+    .glass-card:hover { transform: translateY(-3px); box-shadow: 0 18px 40px rgba(31,38,135,0.16); }
 
-    /* ---------- Metric tiles ---------- */
+    /* ---------- Metric tiles: glassy with gradient edge ---------- */
     [data-testid="stMetric"] {
+        position: relative; overflow: hidden;
         background: var(--panel);
-        border: 1px solid var(--line);
-        border-left: 3px solid var(--accent);
-        border-radius: 12px;
-        padding: 14px 18px;
-        box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+        backdrop-filter: blur(14px) saturate(160%);
+        -webkit-backdrop-filter: blur(14px) saturate(160%);
+        border: 1px solid rgba(255,255,255,0.6);
+        border-radius: 16px;
+        padding: 16px 20px;
+        box-shadow: 0 8px 24px rgba(31,38,135,0.10);
+        transition: transform .2s ease, box-shadow .2s ease;
     }
+    [data-testid="stMetric"]::before {
+        content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--grad);
+    }
+    [data-testid="stMetric"]:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(31,38,135,0.16); }
     [data-testid="stMetricLabel"] { color: var(--muted) !important; font-weight: 600; }
-    [data-testid="stMetricValue"] { color: #0F172A !important; font-weight: 800; }
+    [data-testid="stMetricValue"] {
+        font-family: 'Space Grotesk', sans-serif !important; font-weight: 700;
+        background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
 
-    /* ---------- Buttons: solid emerald, restrained ---------- */
+    /* ---------- Buttons: gradient, animated ---------- */
     div.stButton > button {
-        background: var(--accent) !important;
-        color: #04130D !important;
-        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        background: var(--grad) !important;
+        background-size: 180% 180% !important;
+        color: #FFFFFF !important;
+        font-family: 'Space Grotesk', sans-serif !important;
         font-weight: 700 !important;
         border: none !important;
-        border-radius: 10px !important;
-        padding: 0.5rem 1.3rem !important;
-        transition: 0.2s !important;
+        border-radius: 12px !important;
+        padding: 0.55rem 1.4rem !important;
+        box-shadow: 0 6px 18px rgba(99,102,241,0.35) !important;
+        transition: transform .2s ease, box-shadow .2s ease, background-position .6s ease !important;
     }
-    div.stButton > button:hover { filter: brightness(1.07); box-shadow: 0 4px 14px rgba(16,185,129,0.30); }
-    div.stButton > button p, div.stButton > button div, div.stButton > button span {
-        color: #04130D !important; font-weight: 700 !important;
+    div.stButton > button:hover { transform: translateY(-2px); background-position: 100% 0 !important; box-shadow: 0 10px 26px rgba(99,102,241,0.45) !important; }
+    div.stButton > button p, div.stButton > button div, div.stButton > button span { color: #FFFFFF !important; font-weight: 700 !important; }
+
+    /* ---------- Tabs: pill style ---------- */
+    .stTabs [data-baseweb="tab-list"] { gap: 6px; border-bottom: none; }
+    .stTabs [data-baseweb="tab"] {
+        background: rgba(255,255,255,0.55); border: 1px solid var(--line);
+        border-radius: 999px; padding: 4px 16px; color: var(--muted);
     }
+    .stTabs [aria-selected="true"] { background: var(--grad) !important; border: none !important; }
+    .stTabs [aria-selected="true"] * { color: #FFFFFF !important; }
 
-    /* ---------- Tabs ---------- */
-    .stTabs [data-baseweb="tab-list"] { gap: 4px; border-bottom: 1px solid var(--line); }
-    .stTabs [data-baseweb="tab"] { background: transparent; color: var(--muted); border-radius: 8px 8px 0 0; }
-    .stTabs [aria-selected="true"] { color: #0F172A !important; border-bottom: 2px solid var(--accent) !important; }
-
-    /* ---------- Selectbox / inputs ---------- */
+    /* ---------- Inputs / selects ---------- */
     div[data-baseweb="select"] > div {
-        background-color: var(--panel) !important; color: var(--text) !important;
-        border: 1px solid var(--line) !important; border-radius: 10px !important;
+        background-color: var(--panel-solid) !important; color: var(--text) !important;
+        border: 1px solid var(--line) !important; border-radius: 12px !important;
     }
     div[data-baseweb="select"] input, .stTextInput input, .stNumberInput input { color: var(--text) !important; }
-    div[data-baseweb="popover"] ul { background-color: var(--panel) !important; }
+    div[data-baseweb="popover"] ul { background-color: #FFFFFF !important; border-radius: 12px; }
     div[data-baseweb="popover"] li, div[data-baseweb="popover"] li span, div[data-baseweb="popover"] li div { color: var(--text) !important; }
-    div[data-baseweb="popover"] li:hover { background-color: var(--accent-soft) !important; }
-
-    /* ---------- Sliders ---------- */
-    div[data-baseweb="slider"] [role="slider"] { background: var(--accent) !important; }
+    div[data-baseweb="popover"] li:hover { background: var(--grad-soft) !important; }
+    div[data-baseweb="slider"] [role="slider"] { background: var(--c1) !important; }
 
     /* ---------- Sidebar nav (radio) ---------- */
     div[role="radiogroup"] > label {
-        background: var(--panel);
+        background: rgba(255,255,255,0.55);
         border: 1px solid var(--line);
-        border-radius: 10px; padding: 9px 12px; margin-bottom: 6px;
-        transition: 0.18s;
+        border-radius: 12px; padding: 10px 14px; margin-bottom: 7px;
+        transition: .2s; backdrop-filter: blur(8px);
     }
-    div[role="radiogroup"] > label:hover { border-color: var(--accent); background: var(--accent-soft); }
+    div[role="radiogroup"] > label:hover { border-color: transparent; background: var(--grad-soft); transform: translateX(2px); }
 
-    /* ---------- Sidebar: solid panel, always open ---------- */
+    /* ---------- Sidebar: frosted glass ---------- */
     [data-testid="collapsedControl"] { display: none !important; }
     section[data-testid="stSidebar"] {
-        background: var(--bg-soft) !important;
-        border-right: 1px solid var(--line);
+        background: rgba(255,255,255,0.55) !important;
+        backdrop-filter: blur(20px) saturate(160%);
+        -webkit-backdrop-filter: blur(20px) saturate(160%);
+        border-right: 1px solid rgba(255,255,255,0.6);
         visibility: visible !important; transform: none !important;
     }
     section[data-testid="stSidebar"] .block-container { padding-top: 14px; padding-bottom: 16px; }
 
     /* ---------- DataFrames ---------- */
     div[data-testid="stDataFrame"] {
-        border: 1px solid var(--line);
-        border-radius: 12px; overflow: hidden;
+        border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+        box-shadow: 0 8px 24px rgba(31,38,135,0.08);
     }
 
     /* ---------- Links ---------- */
-    .stApp a { color: var(--accent) !important; }
+    .stApp a { color: var(--c1) !important; font-weight: 600; }
 
     /* ---------- Scrollbar ---------- */
-    ::-webkit-scrollbar { width: 9px; height: 9px; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.18); border-radius: 6px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,0.30); }
+    ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--c1), var(--c3)); border-radius: 8px; }
 
     /* ---------- Hide Streamlit chrome ---------- */
     #MainMenu, footer { visibility: hidden; }
@@ -137,16 +167,15 @@ st.markdown("""
     /* ---------- Sticky logo box (if re-enabled) ---------- */
     .sidebar-logo {
         position: sticky; top: 0; z-index: 1000;
-        background: var(--panel);
-        border-bottom: 1px solid var(--line);
-        padding: 10px 12px; text-align: center;
+        background: rgba(255,255,255,0.6); backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--line); padding: 10px 12px; text-align: center;
     }
     .sidebar-logo img { height: 36px; width: auto; }
 
-    /* ---------- Responsive (phones) ---------- */
+    /* ---------- Responsive ---------- */
     @media (max-width: 640px) {
-        h1 { font-size: 1.5rem !important; }
-        h2 { font-size: 1.25rem !important; }
+        h1 { font-size: 1.6rem !important; }
+        h2 { font-size: 1.3rem !important; }
         .block-container { padding-left: 0.6rem !important; padding-right: 0.6rem !important; }
     }
 </style>
